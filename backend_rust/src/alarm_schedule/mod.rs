@@ -18,7 +18,6 @@ pub struct AlarmSchedule {
     alarms: Vec<ModelAlarm>,
     time_zone: ModelTimezone,
     offset: UtcOffset,
-    looper_running: bool,
 }
 
 impl AlarmSchedule {
@@ -32,7 +31,6 @@ impl AlarmSchedule {
         .unwrap();
         Self {
             alarms: ModelAlarm::get_all(db).await.unwrap(),
-            looper_running: true,
             time_zone,
             offset,
         }
@@ -72,11 +70,6 @@ impl AlarmSchedule {
         }
     }
 
-    /// Stop the looper loop, used when WebSocket connection attempts are too many and program wants to shudown
-    /// Forces program to quit
-    pub fn shutdown(&mut self) {
-        self.looper_running = false;
-    }
 }
 
 pub struct CronAlarm {
@@ -107,13 +100,12 @@ impl CronAlarm {
         alarm_schedule
     }
 
-    /// whilst self.alarm_schedule.looper_running is true, loop every 1 second,  (is false when max number of webbsocket reconnect attempts have been made, in order to shut down the program)
-    /// Check if current time & day matches alarm, and if so execute alarm illuminate
+    /// loop every 1 second,check if current time & day matches alarm, and if so execute alarm illuminate
     /// is private, so that it can only be executed during the self.init() method, so that it is correctly spawned onto it's own tokio thread
     async fn init_loop(&mut self, sx: Sender<ChannelMessage>) {
         trace!("alarm looper started");
 
-        while self.alarm_schedule.lock().await.looper_running {
+		loop {
             if !self.alarm_schedule.lock().await.alarms.is_empty() {
                 let offset = self.alarm_schedule.lock().await.offset;
                 let now_as_utc_offset = OffsetDateTime::now_utc().to_offset(offset);

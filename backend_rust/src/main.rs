@@ -65,6 +65,4 @@ async fn main() {
     )
     .await;
 
-	// Shouldn't actually get this far, as open_connection will just loop forever
-    cron_alarm.lock().await.shutdown();
 }
